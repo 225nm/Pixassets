@@ -1,0 +1,11 @@
+{
+  "name": "Pixassets",
+  "version": "0.1.0",
+  "description": "Mix-and-match preset pixel art composer for game sprites",
+  "type": "module",
+  "main": "skeleton.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}

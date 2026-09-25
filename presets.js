@@ -224,4 +224,4 @@ function loadPresetsInto(library, PixelLayer) {
   }
 }
 
-module.exports = { COLOR_KEYS, PRESETS, presetToLayer, loadPresetsInto };
+export { COLOR_KEYS, PRESETS, presetToLayer, loadPresetsInto };

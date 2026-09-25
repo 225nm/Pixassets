@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sprite Composer Test-App</title>
+<style>
+  :root {
+    --bg: #f4f1ea; --card: #ffffff; --text: #23201c; --muted: #7a7468;
+    --border: #e3ddd0; --accent: #6a3fb5;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1c1a17; --card: #262320; --text: #f0ece3; --muted: #a39c8c; --border: #3a352e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1c1a17; --card: #262320; --text: #f0ece3; --muted: #a39c8c; --border: #3a352e;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    padding: 28px 18px 48px;
+  }
+  h1 { font-size: 1.35rem; margin: 0 0 4px; }
+  p.sub { color: var(--muted); margin: 0 0 24px; font-size: 0.9rem; }
+  .layout { display: flex; flex-wrap: wrap; gap: 28px; max-width: 780px; }
+  .panel {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px; flex: 1 1 260px;
+  }
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block; font-size: 0.78rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.03em; color: var(--muted); margin-bottom: 5px;
+  }
+  select, input[type=color] {
+    width: 100%; padding: 7px 8px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font-size: 0.9rem;
+  }
+  input[type=color] { height: 34px; padding: 3px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row select { flex: 1; }
+  .row input[type=color] { width: 44px; flex: 0 0 44px; }
+  button {
+    padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--accent); color: white; font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; margin-right: 8px; margin-top: 4px;
+  }
+  button.secondary { background: transparent; color: var(--text); }
+  .preview { text-align: center; }
+  .checker {
+    display: inline-block; margin: 0 auto;
+    background:
+      linear-gradient(45deg, #00000012 25%, transparent 25%) 0 0/16px 16px,
+      linear-gradient(-45deg, #00000012 25%, transparent 25%) 0 0/16px 16px,
+      linear-gradient(45deg, transparent 75%, #00000012 75%) 0 0/16px 16px,
+      linear-gradient(-45deg, transparent 75%, #00000012 75%) 0 0/16px 16px;
+  }
+  .previews { display: flex; gap: 18px; justify-content: center; align-items: flex-end; flex-wrap: wrap; }
+  .previews .label { font-size: 0.75rem; color: var(--muted); margin-top: 6px; }
+  textarea {
+    width: 100%; height: 110px; margin-top: 10px; font-family: ui-monospace, monospace;
+    font-size: 0.72rem; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); padding: 8px; resize: vertical;
+  }
+</style>
+</head>
+<body>
+  <h1>Sprite Composer Test-App</h1>
+  <p class="sub">Pick a part per category, recolor, export the SVG. Head + body compose into one sprite; the accessory is shown as a held/equipped item.</p>
+
+  <div class="layout">
+    <div class="panel">
+      <div class="field">
+        <label>Head</label>
+        <div class="row">
+          <select id="headSelect"></select>
+          <input type="color" id="headColor">
+        </div>
+      </div>
+      <div class="field">
+        <label>Body</label>
+        <div class="row">
+          <select id="bodySelect"></select>
+          <input type="color" id="bodyColor">
+        </div>
+      </div>
+      <div class="field">
+        <label>Accessory</label>
+        <div class="row">
+          <select id="accSelect"></select>
+          <input type="color" id="accColor">
+        </div>
+      </div>
+      <button id="randomizeBtn">Randomize</button>
+      <button id="exportBtn" class="secondary">Export SVG</button>
+      <textarea id="svgOut" style="display:none" readonly></textarea>
+    </div>
+
+    <div class="panel preview">
+      <div class="previews">
+        <div>
+          <div class="checker" id="composeCanvas"></div>
+          <div class="label">composed sprite</div>
+        </div>
+        <div>
+          <div class="checker" id="accCanvas"></div>
+          <div class="label">equipped item</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const COLOR_KEYS = {"a": "#9aa5ad", "d": "#2b2b2b", "k": "#111111", "s": "#e0ac69", "h": "#4a2f1c", "p": "#6a3fb5", "r": "#3b5a8a", "g": "#d4af37", "w": "#d8dee2", "b": "#5b3a21", "e": "#c94b4b"};
+const PRESETS = [{"name": "head_helmet", "label": "Helmet", "category": "head", "primary": "a", "rows": ["........d.......", ".....dddaddd....", "....daaaaaaad...", "...daaaaaaaaad..", "..daaaaaaaaaaad.", "..daaaaaaaaaaad.", "..daaaaaaaaaaad.", ".daaaaaaaaaaaaad", "..dakkkkkkkkaad.", "..dakkkkkkkkaad.", "..da........aad.", "...d........ad..", "............d...", "................", "................", "................"]}, {"name": "head_hair_short", "label": "Short Hair", "category": "head", "primary": "h", "rows": ["................", "................", "..hhhhhhhhhhhh..", "..hhhhhhhhhhhh..", "..hhhhhhhhhhhh..", ".hhhhhhhhhhhhhh.", ".hhhhhhhhhhhhhh.", ".hhhhsssssshhhh.", "..sssssssssssss.", "...sskssssksss..", "...sssssssssss..", "...sssssssssss..", "....sssssssss...", ".....sssssss....", "........s.......", "................"]}, {"name": "head_wizard_hat", "label": "Wizard Hat", "category": "head", "primary": "p", "rows": ["........p.......", ".......ppp......", "......ppppp.....", "......ppppp.....", ".....ppppppp....", "....ppppppppp...", "....ppppppppp...", "...ggggggggggp..", ".ppggggggggggpp.", ".pppppppppppppp.", "...sssssssssss..", "....sssssssss...", "....sssssssss...", "....sssssssss...", ".....sssssss....", "........s......."]}, {"name": "body_armor", "label": "Armor", "category": "body", "primary": "a", "rows": ["................", "..dddddddddddd..", "dddddaaddaaddddd", "daaadaaddaadaaad", "daaadaaddaadaaad", "daaadaaddaadaaad", "dddddaaddaaddddd", "..daaaaddaaaad..", "..daaaaddaaaad..", "..daaaaddaaaad..", "..daaaaddaaaad..", "..daaaaddaaaad..", "..daaaaddaaaad..", "..daaaaddaaaad..", "..daaaaddaaaad..", "..daaaaddaaaad.."]}, {"name": "body_robe", "label": "Robe", "category": "body", "primary": "r", "rows": ["......rrrr......", "......rrrr......", ".....rrrrrr.....", ".....rrrrrr.....", "....rrrrrrrr....", "....rrrrrrrr....", "...rrrrrrrrrr...", "...rrrrrrrrrr...", ".bbbbbbbbbbbbbb.", ".bbbbbbbbbbbbbb.", ".rrrrrrrrrrrrrr.", ".rrrrrrrrrrrrrr.", ".rrrrrrrrrrrrrr.", ".rrrrrrrrrrrrrr.", ".rrrrrrrrrrrrrr.", ".rrrrrrrrrrrrrr."]}, {"name": "accessory_sword", "label": "Sword", "category": "accessory", "primary": "w", "rows": [".......ww.......", "......wwww......", "......wwww......", "......wwww......", "......wwww......", "......wwww......", "......wwww......", "......wwww......", "......wwww......", "......wwww......", "...gggggggggg...", "......bbbb......", "......bbbb......", "......bbbb......", "......gggg......", "......gggg......"]}, {"name": "accessory_shield", "label": "Shield", "category": "accessory", "primary": "a", "rows": ["...ddaaaaaaadd..", "..ddaaaaaaaaadd.", "..daaaaaaaaaaad.", ".daaaaaaaaaaaaad", ".daaaaaaaaaaaaad", ".daaaaaaaaaaaaad", ".daaaaaaeaaaaad.", ".daaaaaeeeaaaad.", ".daaaaeeeeeaaad.", ".daaaaaeeeaaaad.", ".daaaaaaeaaaaad.", ".daaaaaaaaaaaad.", ".daaaaaaaaaaaad.", "..aaaaaaaaaaaa..", ".....aaaaaa.....", "................"]}];
+
+// ---- minimal reference implementation (module classes) ----
+
+class PixelLayer {
+  constructor(width, height) {
+    this.width = width;
+    this.height = height;
+    this.pixels = Array.from({length: height}, () => new Array(width).fill(null));
+  }
+  isInBounds(x, y) { return x >= 0 && y >= 0 && x < this.width && y < this.height; }
+  setPixel(x, y, color) { if (this.isInBounds(x, y)) this.pixels[y][x] = color; }
+  getPixel(x, y) { return this.isInBounds(x, y) ? this.pixels[y][x] : null; }
+}
+
+function presetToLayer(preset, overrideHex) {
+  const layer = new PixelLayer(16, 16);
+  for (let y = 0; y < 16; y++) {
+    const row = preset.rows[y];
+    for (let x = 0; x < 16; x++) {
+      const key = row[x];
+      if (key === '.') continue;
+      const color = (key === preset.primary && overrideHex) ? overrideHex : COLOR_KEYS[key];
+      layer.setPixel(x, y, color);
+    }
+  }
+  return layer;
+}
+
+// Composes head + body into one taller canvas: head occupies rows 0-15,
+// body occupies rows 16-31. Transparent pixels are simply skipped.
+class SpriteComposer {
+  constructor(width, height) { this.width = width; this.height = height; }
+  compose(placedLayers) {
+    const out = new PixelLayer(this.width, this.height);
+    for (const { layer, offsetY } of placedLayers) {
+      for (let y = 0; y < layer.height; y++) {
+        for (let x = 0; x < layer.width; x++) {
+          const c = layer.getPixel(x, y);
+          if (c !== null) out.setPixel(x, y + offsetY, c);
+        }
+      }
+    }
+    return out;
+  }
+}
+
+class SpriteExporter {
+  static toSVG(layer, pixelSize = 10) {
+    const parts = [`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${layer.width * pixelSize} ${layer.height * pixelSize}" width="${layer.width * pixelSize}" height="${layer.height * pixelSize}">`];
+    for (let y = 0; y < layer.height; y++) {
+      for (let x = 0; x < layer.width; x++) {
+        const c = layer.getPixel(x, y);
+        if (c === null) continue;
+        parts.push(`<rect x="${x * pixelSize}" y="${y * pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${c}"/>`);
+      }
+    }
+    parts.push('</svg>');
+    return parts.join('');
+  }
+}
+
+// ---- UI wiring ----
+
+const byCat = { head: [], body: [], accessory: [] };
+for (const p of PRESETS) byCat[p.category].push(p);
+
+function fillSelect(id, list, withNone) {
+  const el = document.getElementById(id);
+  if (withNone) el.appendChild(new Option('None', ''));
+  for (const p of list) el.appendChild(new Option(p.label, p.name));
+}
+fillSelect('headSelect', byCat.head, false);
+fillSelect('bodySelect', byCat.body, false);
+fillSelect('accSelect', byCat.accessory, true);
+
+const headSelect = document.getElementById('headSelect');
+const bodySelect = document.getElementById('bodySelect');
+const accSelect = document.getElementById('accSelect');
+const headColor = document.getElementById('headColor');
+const bodyColor = document.getElementById('bodyColor');
+const accColor = document.getElementById('accColor');
+
+function findPreset(name) { return PRESETS.find(p => p.name === name); }
+
+function syncColorDefault(selectEl, colorEl) {
+  const p = findPreset(selectEl.value);
+  if (p) colorEl.value = COLOR_KEYS[p.primary];
+}
+
+function render() {
+  const headPreset = findPreset(headSelect.value);
+  const bodyPreset = findPreset(bodySelect.value);
+  const accPreset = findPreset(accSelect.value);
+
+  const composer = new SpriteComposer(16, 32);
+  const placed = [];
+  if (headPreset) placed.push({ layer: presetToLayer(headPreset, headColor.value), offsetY: 0 });
+  if (bodyPreset) placed.push({ layer: presetToLayer(bodyPreset, bodyColor.value), offsetY: 16 });
+  const composed = composer.compose(placed);
+
+  document.getElementById('composeCanvas').innerHTML = SpriteExporter.toSVG(composed, 10);
+
+  if (accPreset) {
+    const accLayer = presetToLayer(accPreset, accColor.value);
+    document.getElementById('accCanvas').innerHTML = SpriteExporter.toSVG(accLayer, 8);
+  } else {
+    document.getElementById('accCanvas').innerHTML = '';
+  }
+  document.getElementById('svgOut').style.display = 'none';
+}
+
+[headSelect, bodySelect, accSelect].forEach(el => el.addEventListener('change', () => {
+  if (el === headSelect) syncColorDefault(headSelect, headColor);
+  if (el === bodySelect) syncColorDefault(bodySelect, bodyColor);
+  if (el === accSelect) syncColorDefault(accSelect, accColor);
+  render();
+}));
+[headColor, bodyColor, accColor].forEach(el => el.addEventListener('input', render));
+
+document.getElementById('randomizeBtn').addEventListener('click', () => {
+  const pick = list => list[Math.floor(Math.random() * list.length)];
+  headSelect.value = pick(byCat.head).name;
+  bodySelect.value = pick(byCat.body).name;
+  accSelect.value = Math.random() < 0.7 ? pick(byCat.accessory).name : '';
+  syncColorDefault(headSelect, headColor);
+  syncColorDefault(bodySelect, bodyColor);
+  syncColorDefault(accSelect, accColor);
+  render();
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const headPreset = findPreset(headSelect.value);
+  const bodyPreset = findPreset(bodySelect.value);
+  const composer = new SpriteComposer(16, 32);
+  const placed = [];
+  if (headPreset) placed.push({ layer: presetToLayer(headPreset, headColor.value), offsetY: 0 });
+  if (bodyPreset) placed.push({ layer: presetToLayer(bodyPreset, bodyColor.value), offsetY: 16 });
+  const composed = composer.compose(placed);
+  const out = document.getElementById('svgOut');
+  out.value = SpriteExporter.toSVG(composed, 10);
+  out.style.display = 'block';
+  out.select();
+});
+
+// initial state
+headSelect.value = 'head_helmet';
+bodySelect.value = 'body_armor';
+accSelect.value = 'accessory_sword';
+syncColorDefault(headSelect, headColor);
+syncColorDefault(bodySelect, bodyColor);
+syncColorDefault(accSelect, accColor);
+render();
+</script>
+</body>
+</html>
