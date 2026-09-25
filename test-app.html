@@ -64,6 +64,7 @@
   }
   .previews { display: flex; gap: 18px; justify-content: center; align-items: flex-end; flex-wrap: wrap; }
   .previews .label { font-size: 0.75rem; color: var(--muted); margin-top: 6px; }
+  .note { font-size: 0.72rem; color: var(--muted); margin-top: 14px; }
   textarea {
     width: 100%; height: 110px; margin-top: 10px; font-family: ui-monospace, monospace;
     font-size: 0.72rem; border-radius: 8px; border: 1px solid var(--border);
@@ -114,74 +115,28 @@
           <div class="label">equipped item</div>
         </div>
       </div>
+      <div class="note">Rendering via your actual PixelLayer / AssetLibrary / Palette / SpriteComposer / SpriteExporter classes from skeleton.js.</div>
     </div>
   </div>
 
-<script>
-const COLOR_KEYS = {"a": "#9aa5ad", "d": "#2b2b2b", "k": "#111111", "s": "#e0ac69", "h": "#4a2f1c", "p": "#6a3fb5", "r": "#3b5a8a", "g": "#d4af37", "w": "#d8dee2", "b": "#5b3a21", "e": "#c94b4b"};
-const PRESETS = [{"name": "head_helmet", "label": "Helmet", "category": "head", "primary": "a", "rows": ["........d.......", ".....dddaddd....", "....daaaaaaad...", "...daaaaaaaaad..", "..daaaaaaaaaaad.", "..daaaaaaaaaaad.", "..daaaaaaaaaaad.", ".daaaaaaaaaaaaad", "..dakkkkkkkkaad.", "..dakkkkkkkkaad.", "..da........aad.", "...d........ad..", "............d...", "................", "................", "................"]}, {"name": "head_hair_short", "label": "Short Hair", "category": "head", "primary": "h", "rows": ["................", "................", "..hhhhhhhhhhhh..", "..hhhhhhhhhhhh..", "..hhhhhhhhhhhh..", ".hhhhhhhhhhhhhh.", ".hhhhhhhhhhhhhh.", ".hhhhsssssshhhh.", "..sssssssssssss.", "...sskssssksss..", "...sssssssssss..", "...sssssssssss..", "....sssssssss...", ".....sssssss....", "........s.......", "................"]}, {"name": "head_wizard_hat", "label": "Wizard Hat", "category": "head", "primary": "p", "rows": ["........p.......", ".......ppp......", "......ppppp.....", "......ppppp.....", ".....ppppppp....", "....ppppppppp...", "....ppppppppp...", "...ggggggggggp..", ".ppggggggggggpp.", ".pppppppppppppp.", "...sssssssssss..", "....sssssssss...", "....sssssssss...", "....sssssssss...", ".....sssssss....", "........s......."]}, {"name": "body_armor", "label": "Armor", "category": "body", "primary": "a", "rows": ["................", "..dddddddddddd..", "dddddaaddaaddddd", "daaadaaddaadaaad", "daaadaaddaadaaad", "daaadaaddaadaaad", "dddddaaddaaddddd", "..daaaaddaaaad..", "..daaaaddaaaad..", "..daaaaddaaaad..", "..daaaaddaaaad..", "..daaaaddaaaad..", "..daaaaddaaaad..", "..daaaaddaaaad..", "..daaaaddaaaad..", "..daaaaddaaaad.."]}, {"name": "body_robe", "label": "Robe", "category": "body", "primary": "r", "rows": ["......rrrr......", "......rrrr......", ".....rrrrrr.....", ".....rrrrrr.....", "....rrrrrrrr....", "....rrrrrrrr....", "...rrrrrrrrrr...", "...rrrrrrrrrr...", ".bbbbbbbbbbbbbb.", ".bbbbbbbbbbbbbb.", ".rrrrrrrrrrrrrr.", ".rrrrrrrrrrrrrr.", ".rrrrrrrrrrrrrr.", ".rrrrrrrrrrrrrr.", ".rrrrrrrrrrrrrr.", ".rrrrrrrrrrrrrr."]}, {"name": "accessory_sword", "label": "Sword", "category": "accessory", "primary": "w", "rows": [".......ww.......", "......wwww......", "......wwww......", "......wwww......", "......wwww......", "......wwww......", "......wwww......", "......wwww......", "......wwww......", "......wwww......", "...gggggggggg...", "......bbbb......", "......bbbb......", "......bbbb......", "......gggg......", "......gggg......"]}, {"name": "accessory_shield", "label": "Shield", "category": "accessory", "primary": "a", "rows": ["...ddaaaaaaadd..", "..ddaaaaaaaaadd.", "..daaaaaaaaaaad.", ".daaaaaaaaaaaaad", ".daaaaaaaaaaaaad", ".daaaaaaaaaaaaad", ".daaaaaaeaaaaad.", ".daaaaaeeeaaaad.", ".daaaaeeeeeaaad.", ".daaaaaeeeaaaad.", ".daaaaaaeaaaaad.", ".daaaaaaaaaaaad.", ".daaaaaaaaaaaad.", "..aaaaaaaaaaaa..", ".....aaaaaa.....", "................"]}];
+<script type="module">
+import { PixelLayer, AssetLibrary, Palette, SpriteComposer, SpriteExporter } from './skeleton.js';
+import { PRESETS, COLOR_KEYS, presetToLayer, loadPresetsInto } from './presets.js';
 
-// ---- minimal reference implementation (module classes) ----
+// Display metadata not part of the module's core data (label + which
+// color key is this preset's "primary" one, for the recolor picker).
+const META = {
+  head_helmet:      { label: 'Helmet',      primary: 'a' },
+  head_hair_short:  { label: 'Short Hair',  primary: 'h' },
+  head_wizard_hat:  { label: 'Wizard Hat',  primary: 'p' },
+  body_armor:       { label: 'Armor',       primary: 'a' },
+  body_robe:        { label: 'Robe',        primary: 'r' },
+  accessory_sword:  { label: 'Sword',       primary: 'w' },
+  accessory_shield: { label: 'Shield',      primary: 'a' },
+};
 
-class PixelLayer {
-  constructor(width, height) {
-    this.width = width;
-    this.height = height;
-    this.pixels = Array.from({length: height}, () => new Array(width).fill(null));
-  }
-  isInBounds(x, y) { return x >= 0 && y >= 0 && x < this.width && y < this.height; }
-  setPixel(x, y, color) { if (this.isInBounds(x, y)) this.pixels[y][x] = color; }
-  getPixel(x, y) { return this.isInBounds(x, y) ? this.pixels[y][x] : null; }
-}
-
-function presetToLayer(preset, overrideHex) {
-  const layer = new PixelLayer(16, 16);
-  for (let y = 0; y < 16; y++) {
-    const row = preset.rows[y];
-    for (let x = 0; x < 16; x++) {
-      const key = row[x];
-      if (key === '.') continue;
-      const color = (key === preset.primary && overrideHex) ? overrideHex : COLOR_KEYS[key];
-      layer.setPixel(x, y, color);
-    }
-  }
-  return layer;
-}
-
-// Composes head + body into one taller canvas: head occupies rows 0-15,
-// body occupies rows 16-31. Transparent pixels are simply skipped.
-class SpriteComposer {
-  constructor(width, height) { this.width = width; this.height = height; }
-  compose(placedLayers) {
-    const out = new PixelLayer(this.width, this.height);
-    for (const { layer, offsetY } of placedLayers) {
-      for (let y = 0; y < layer.height; y++) {
-        for (let x = 0; x < layer.width; x++) {
-          const c = layer.getPixel(x, y);
-          if (c !== null) out.setPixel(x, y + offsetY, c);
-        }
-      }
-    }
-    return out;
-  }
-}
-
-class SpriteExporter {
-  static toSVG(layer, pixelSize = 10) {
-    const parts = [`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${layer.width * pixelSize} ${layer.height * pixelSize}" width="${layer.width * pixelSize}" height="${layer.height * pixelSize}">`];
-    for (let y = 0; y < layer.height; y++) {
-      for (let x = 0; x < layer.width; x++) {
-        const c = layer.getPixel(x, y);
-        if (c === null) continue;
-        parts.push(`<rect x="${x * pixelSize}" y="${y * pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${c}"/>`);
-      }
-    }
-    parts.push('</svg>');
-    return parts.join('');
-  }
-}
-
-// ---- UI wiring ----
+const library = new AssetLibrary();
+loadPresetsInto(library, PixelLayer);
 
 const byCat = { head: [], body: [], accessory: [] };
 for (const p of PRESETS) byCat[p.category].push(p);
@@ -189,7 +144,7 @@ for (const p of PRESETS) byCat[p.category].push(p);
 function fillSelect(id, list, withNone) {
   const el = document.getElementById(id);
   if (withNone) el.appendChild(new Option('None', ''));
-  for (const p of list) el.appendChild(new Option(p.label, p.name));
+  for (const p of list) el.appendChild(new Option(META[p.name].label, p.name));
 }
 fillSelect('headSelect', byCat.head, false);
 fillSelect('bodySelect', byCat.body, false);
@@ -206,24 +161,38 @@ function findPreset(name) { return PRESETS.find(p => p.name === name); }
 
 function syncColorDefault(selectEl, colorEl) {
   const p = findPreset(selectEl.value);
-  if (p) colorEl.value = COLOR_KEYS[p.primary];
+  if (p) colorEl.value = COLOR_KEYS[META[p.name].primary];
+}
+
+// Fetches a preset from the AssetLibrary and, if the user picked a custom
+// color, recolors it via Palette.recolor (old resolved hex -> new hex).
+function loadWithOverride(name, overrideHex) {
+  const preset = findPreset(name);
+  if (!preset) return null;
+  const category = preset.category;
+  const base = library.getPreset(category, name);
+  const originalHex = COLOR_KEYS[META[name].primary];
+  if (overrideHex && overrideHex.toLowerCase() !== originalHex.toLowerCase()) {
+    return Palette.recolor(base, { [originalHex]: overrideHex });
+  }
+  return base;
 }
 
 function render() {
-  const headPreset = findPreset(headSelect.value);
-  const bodyPreset = findPreset(bodySelect.value);
-  const accPreset = findPreset(accSelect.value);
+  const headName = headSelect.value;
+  const bodyName = bodySelect.value;
+  const accName = accSelect.value;
 
   const composer = new SpriteComposer(16, 32);
   const placed = [];
-  if (headPreset) placed.push({ layer: presetToLayer(headPreset, headColor.value), offsetY: 0 });
-  if (bodyPreset) placed.push({ layer: presetToLayer(bodyPreset, bodyColor.value), offsetY: 16 });
+  if (headName) placed.push({ layer: loadWithOverride(headName, headColor.value), offsetX: 0, offsetY: 0 });
+  if (bodyName) placed.push({ layer: loadWithOverride(bodyName, bodyColor.value), offsetX: 0, offsetY: 16 });
   const composed = composer.compose(placed);
 
   document.getElementById('composeCanvas').innerHTML = SpriteExporter.toSVG(composed, 10);
 
-  if (accPreset) {
-    const accLayer = presetToLayer(accPreset, accColor.value);
+  if (accName) {
+    const accLayer = loadWithOverride(accName, accColor.value);
     document.getElementById('accCanvas').innerHTML = SpriteExporter.toSVG(accLayer, 8);
   } else {
     document.getElementById('accCanvas').innerHTML = '';
@@ -251,12 +220,10 @@ document.getElementById('randomizeBtn').addEventListener('click', () => {
 });
 
 document.getElementById('exportBtn').addEventListener('click', () => {
-  const headPreset = findPreset(headSelect.value);
-  const bodyPreset = findPreset(bodySelect.value);
   const composer = new SpriteComposer(16, 32);
   const placed = [];
-  if (headPreset) placed.push({ layer: presetToLayer(headPreset, headColor.value), offsetY: 0 });
-  if (bodyPreset) placed.push({ layer: presetToLayer(bodyPreset, bodyColor.value), offsetY: 16 });
+  if (headSelect.value) placed.push({ layer: loadWithOverride(headSelect.value, headColor.value), offsetX: 0, offsetY: 0 });
+  if (bodySelect.value) placed.push({ layer: loadWithOverride(bodySelect.value, bodyColor.value), offsetX: 0, offsetY: 16 });
   const composed = composer.compose(placed);
   const out = document.getElementById('svgOut');
   out.value = SpriteExporter.toSVG(composed, 10);
